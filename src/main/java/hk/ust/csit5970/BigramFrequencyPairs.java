@@ -1,7 +1,9 @@
+
 package hk.ust.csit5970;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -47,12 +49,28 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 		@Override
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
+			// String line = ((Text) value).toString().toLowerCase().replaceAll("[^a-z ]", "");;
 			String line = ((Text) value).toString();
 			String[] words = line.trim().split("\\s+");
 			
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			if (words.length > 1){
+				String previous_word = words[0];
+				for (int i = 1; i < words.length; i++) {
+					String w = words[i];
+					// Skip empty words
+					if (w.length() == 0) {
+						continue;
+					}
+					BIGRAM.set(previous_word,"");
+					context.write(BIGRAM, ONE);
+					BIGRAM.set(previous_word, w);
+					context.write(BIGRAM, ONE);
+					previous_word = w;
+				}
+			}
 		}
 	}
 
@@ -64,6 +82,8 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 
 		// Reuse objects.
 		private final static FloatWritable VALUE = new FloatWritable();
+		private String currentLeft = null;
+		private float marginal = 0;
 
 		@Override
 		public void reduce(PairOfStrings key, Iterable<IntWritable> values,
@@ -71,6 +91,31 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			String left = key.getLeftElement();   
+			String right = key.getRightElement(); 
+
+			int sum = 0;
+			for (IntWritable val : values) {
+				sum += val.get();
+			}
+
+
+			if (currentLeft == null || !currentLeft.equals(left)) {
+				currentLeft = left;
+				marginal = 0; 
+			}
+
+			if (right.equals("")) {
+				marginal = sum;
+				VALUE.set(marginal); 
+				context.write(new PairOfStrings(left, ""), VALUE);
+			} else {
+				if (marginal > 0) {
+					float relativeFreq = (float) sum / marginal;
+					VALUE.set(relativeFreq);
+					context.write(key, VALUE);
+				}
+			}
 		}
 	}
 	
@@ -84,6 +129,13 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<IntWritable> iter = values.iterator();
+			int sum = 0;
+			while (iter.hasNext()) {
+				sum += iter.next().get();
+			}
+			SUM.set(sum);
+			context.write(key, SUM);
 		}
 	}
 
