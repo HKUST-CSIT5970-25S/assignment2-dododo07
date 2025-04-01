@@ -2,6 +2,7 @@ package hk.ust.csit5970;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
@@ -54,6 +55,20 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			if (words.length > 1){
+				KEY.set( words[0]);
+				for (int i = 1; i < words.length; i++) {
+					String w = words[i];
+					// Skip empty words
+					if (w.length() == 0) {
+						continue;
+					}
+					STRIPE.increment(w);
+					context.write(KEY, STRIPE);
+					KEY.set(w);
+					STRIPE.clear();
+				}
+			}
 		}
 	}
 
@@ -75,6 +90,28 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<HashMapStringIntWritable> iter = stripes.iterator();
+			while (iter.hasNext()) {
+				SUM_STRIPES.plus(iter.next());
+			}
+
+			int marginal = 0;
+			for (int count : SUM_STRIPES.values()) {
+				marginal += count;
+			}
+
+			for (Map.Entry<String, Integer> entry : SUM_STRIPES.entrySet()) {
+				String w2 = entry.getKey();
+				float p = (float) entry.getValue() / marginal;
+				BIGRAM.set(key.toString(), w2);
+				FREQ.set(p);
+				context.write(BIGRAM, FREQ);
+			}
+
+			BIGRAM.set(key.toString(), "");
+			FREQ.set((float) marginal);
+			context.write(BIGRAM, FREQ);
+			SUM_STRIPES.clear();
 		}
 	}
 
@@ -94,6 +131,15 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<HashMapStringIntWritable> iter = stripes.iterator();
+
+			while (iter.hasNext()) {
+				for ( String second_w : iter.next().keySet() ) {
+					SUM_STRIPES.increment(second_w);
+				}
+			}
+			context.write(key, SUM_STRIPES);
+			SUM_STRIPES.clear();
 		}
 	}
 
