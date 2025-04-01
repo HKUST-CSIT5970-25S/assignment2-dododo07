@@ -53,6 +53,19 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			while (doc_tokenizer.hasMoreTokens()) {
+				String word = doc_tokenizer.nextToken().toLowerCase();
+				if (word.length() == 0) continue;
+				Integer oldCount = word_set.get(word);
+				if (oldCount == null) {
+					word_set.put(word, 1);
+				} else {
+					word_set.put(word, oldCount + 1);
+				}
+			}
+			for (Map.Entry<String, Integer> entry : word_set.entrySet()) {
+				context.write(new Text(entry.getKey()), new IntWritable(entry.getValue()));
+			}
 		}
 	}
 
@@ -66,6 +79,11 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int sum = 0;
+			for (IntWritable val : values) {
+				sum += val.get();
+			}
+			context.write(key, new IntWritable(sum));
 		}
 	}
 
@@ -81,6 +99,22 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Set<String> uniqueWords = new TreeSet<String>();
+
+			while (doc_tokenizer.hasMoreTokens()) {
+				String w = doc_tokenizer.nextToken().toLowerCase();
+				if (w.length() > 0) {
+					uniqueWords.add(w);
+				}
+			}
+			List<String> wordList = new ArrayList<String>(uniqueWords);
+			for (int i = 0; i < wordList.size(); i++) {
+				for (int j = i + 1; j < wordList.size(); j++) {
+					String left = wordList.get(i);
+					String right = wordList.get(j);
+					context.write(new PairOfStrings(left, right), new IntWritable(1));
+				}
+			}
 		}
 	}
 
@@ -93,6 +127,11 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int sum = 0;
+			for (IntWritable val : values) {
+				sum += val.get();
+			}
+			context.write(key, new IntWritable(sum));
 		}
 	}
 
@@ -131,7 +170,7 @@ public class CORPairs extends Configured implements Tool {
 					line = reader.readLine();
 				}
 				reader.close();
-				LOG.info("finished！");
+				LOG.info("finished��");
 			} catch (Exception e) {
 				System.out.println(e.getMessage());
 			}
@@ -145,6 +184,22 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int freqAB = 0;
+			for (IntWritable val : values) {
+				freqAB += val.get();
+			}
+
+			String A = key.getLeftElement();
+			String B = key.getRightElement();
+			if (!word_total_map.containsKey(A) || !word_total_map.containsKey(B)) {
+				return; 
+			}
+			int freqA = word_total_map.get(A);
+			int freqB = word_total_map.get(B);
+
+			double cor = (double) freqAB / (freqA * freqB);
+
+			context.write(key, new DoubleWritable(cor));
 		}
 	}
 
